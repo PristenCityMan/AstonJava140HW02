@@ -11,6 +11,7 @@ import java.util.List;
 
 public class UserDao {
 
+
     public void save(User user) {
         Transaction transaction = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {

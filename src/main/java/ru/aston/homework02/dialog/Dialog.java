@@ -3,15 +3,16 @@ package ru.aston.homework02.dialog;
 import ru.aston.homework02.hibernate.HibernateUtil;
 import ru.aston.homework02.dao.UserDao;
 import ru.aston.homework02.model.User;
+import ru.aston.homework02.service.UserService;
 
 import java.util.List;
 import java.util.Scanner;
 
 public class Dialog {
-    private static final UserDao userDao = new UserDao();
-    private static final Scanner scanner = new Scanner(System.in);
-
-    public static void dialog() {
+    private  final UserDao userDao = new UserDao();
+    private  final Scanner scanner = new Scanner(System.in);
+    private UserService userService = new UserService(userDao);
+    public  void dialog() {
         System.out.println("=== DIALOG START ===");
         boolean running = true;
 
@@ -20,11 +21,11 @@ public class Dialog {
             String choice = scanner.nextLine().trim();
 
             switch (choice) {
-                case "1" -> createUser();
-                case "2" -> showAllUsers();
-                case "3" -> findUserById();
-                case "4" -> updateUser();
-                case "5" -> deleteUser();
+                case "1" -> createUser(scanner);
+                case "2" -> showAllUsers(scanner);
+                case "3" -> findUserById(scanner);
+                case "4" -> updateUser(scanner);
+                case "5" -> deleteUser(scanner);
                 case "0" -> {
                     running = false;
                     HibernateUtil.shutdown();
@@ -35,7 +36,7 @@ public class Dialog {
         }
     }
 
-    private static void printMenu() {
+    private  void printMenu() {
         System.out.println("\n--- МЕНЮ ---");
         System.out.println("1. Создать пользователя");
         System.out.println("2. Показать всех пользователей");
@@ -46,7 +47,7 @@ public class Dialog {
         System.out.print("Выберите опцию: ");
     }
 
-    private static void createUser() {
+    private  void createUser(Scanner scanner) {
         System.out.print("Введите имя: ");
         String name = scanner.nextLine();
         System.out.print("Введите email: ");
@@ -54,12 +55,11 @@ public class Dialog {
         System.out.print("Введите возраст: ");
         int age = Integer.parseInt(scanner.nextLine());
 
-        User user = new User(name, email, age);
-        userDao.save(user);
+        userService.createUser(name, email, age);
     }
 
-    private static void showAllUsers() {
-        List<User> users = userDao.findAll();
+    private  void showAllUsers(Scanner scanner) {
+        List<User> users = userService.getAllUsers();
         if (users.isEmpty()) {
             System.out.println("База данных пуста.");
         } else {
@@ -67,10 +67,10 @@ public class Dialog {
         }
     }
 
-    private static void findUserById() {
+    private  void findUserById(Scanner scanner) {
         System.out.print("Введите ID пользователя: ");
         Long id = Long.parseLong(scanner.nextLine());
-        User user = userDao.findById(id);
+        User user = userService.getUserById(id);
         if (user != null) {
             System.out.println(user);
         } else {
@@ -78,35 +78,29 @@ public class Dialog {
         }
     }
 
-    private static void updateUser() {
+    private void updateUser(Scanner scanner) {
         System.out.print("Введите ID пользователя для обновления: ");
         Long id = Long.parseLong(scanner.nextLine());
-        User user = userDao.findById(id);
-
-        if (user == null) {
-            System.out.println("Пользователь не найден.");
-            return;
-        }
 
         System.out.print("Введите новое имя (оставьте пустым для пропуска): ");
         String name = scanner.nextLine();
-        if (!name.isBlank()) user.setName(name);
 
         System.out.print("Введите новый email (оставьте пустым для пропуска): ");
         String email = scanner.nextLine();
-        if (!email.isBlank()) user.setEmail(email);
 
         System.out.print("Введите новый возраст (или -1 для пропуска): ");
         int age = Integer.parseInt(scanner.nextLine());
-        if (age != -1) user.setAge(age);
 
-        userDao.update(user);
+        boolean updated = userService.updateUserInfo(id, name, email, age);
+        if (!updated) {
+            System.out.println("Пользователь не найден.");
+        }
     }
 
-    private static void deleteUser() {
+    private  void deleteUser(Scanner scanner) {
         System.out.print("Введите ID пользователя для удаления: ");
         Long id = Long.parseLong(scanner.nextLine());
-        boolean deleted = userDao.deleteById(id);
+        boolean deleted = userService.deleteUserById(id);
         if (deleted) {
             System.out.println("Операция удаления завершена успешно.");
         } else {

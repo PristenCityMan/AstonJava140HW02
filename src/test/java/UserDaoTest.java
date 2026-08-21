@@ -4,6 +4,7 @@ import liquibase.database.DatabaseFactory;
 import liquibase.database.jvm.JdbcConnection;
 import liquibase.resource.ClassLoaderResourceAccessor;
 import org.hibernate.Session;
+import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -33,15 +34,19 @@ class UserDaoTest {
             .withUsername("test_user")
             .withPassword("test_pass");
 
+    static {
+        postgres.start();
+        System.setProperty("db.url", postgres.getJdbcUrl());
+        System.setProperty("db.username", postgres.getUsername());
+        System.setProperty("db.password", postgres.getPassword());
+    }
+
     private UserDao userDao;
+    private static SessionFactory sessionFactory;
 
     @BeforeAll
     static void beforeAll() throws Exception{
-        System.setProperty("hibernate.connection.url", postgres.getJdbcUrl());
-        System.setProperty("hibernate.connection.username", postgres.getUsername());
-        System.setProperty("hibernate.connection.password", postgres.getPassword());
 
-        System.setProperty("hibernate.hbm2ddl.auto", "validate");
 
         try (Connection connection = DriverManager.getConnection(
                 postgres.getJdbcUrl(),
@@ -51,15 +56,15 @@ class UserDaoTest {
             Database database = DatabaseFactory.getInstance()
                     .findCorrectDatabaseImplementation(new JdbcConnection(connection));
 
-            // (обычно в src/main/resources)
-            String changelogPath = "db/changelog/db.changelog-master.yaml";
+
+            String changelogPath = "changelog/db.changelog-master-test.yaml";
 
             try (Liquibase liquibase = new Liquibase(changelogPath, new ClassLoaderResourceAccessor(), database)) {
 
                 liquibase.update("");
             }
         }
-        HibernateUtil.getSessionFactory();
+
     }
 
     @AfterAll
@@ -75,17 +80,19 @@ class UserDaoTest {
         userDao = new UserDao();
 
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
-            Transaction tx = session.beginTransaction();
+            Transaction transaction = session.beginTransaction();
             session.createMutationQuery("DELETE FROM User").executeUpdate();
-            tx.commit();
+            transaction.commit();
         }
     }
 
     @Test
-    void save_ShouldPersistUser() {
+    void saveTest() {
 
         User user = new User();
         user.setEmail("test@example.com");
+        user.setName("Test_user");
+        user.setAge(99);
 
         userDao.save(user);
 
@@ -95,10 +102,12 @@ class UserDaoTest {
         User savedUser = userDao.findById(user.getId());
         assertNotNull(savedUser);
         assertEquals("test@example.com", savedUser.getEmail());
+        assertEquals("Test_user", savedUser.getName());
+        assertEquals(99, savedUser.getAge());
     }
 
     @Test
-    void findById_ShouldReturnNull_WhenUserDoesNotExist() {
+    void findByIdNotExistTest() {
 
         User foundUser = userDao.findById(999L);
 
@@ -107,12 +116,17 @@ class UserDaoTest {
     }
 
     @Test
-    void findAll_ShouldReturnAllUsers() {
+    void findAllTest() {
 
         User user1 = new User();
-        user1.setEmail("user1@example.com");
+        user1.setEmail("test@example.com");
+        user1.setName("Test_user");
+        user1.setAge(99);
+
         User user2 = new User();
-        user2.setEmail("user2@example.com");
+        user2.setEmail("test1@example.com");
+        user2.setName("Test_user2");
+        user2.setAge(98);
 
         userDao.save(user1);
         userDao.save(user2);
@@ -125,26 +139,30 @@ class UserDaoTest {
     }
 
     @Test
-    void update_ShouldModifyExistingUser() {
+    void updateTest() {
 
         User user = new User();
-        user.setEmail("old@example.com");
+        user.setEmail("test@example.com");
+        user.setName("Test_user");
+        user.setAge(99);
         userDao.save(user);
 
 
-        user.setEmail("new@example.com");
+        user.setEmail("newemail@example.com");
         userDao.update(user);
 
 
         User updatedUser = userDao.findById(user.getId());
-        assertEquals("new@example.com", updatedUser.getEmail());
+        assertEquals("newemail@example.com", updatedUser.getEmail());
     }
 
     @Test
-    void deleteById_ShouldReturnTrueAndRemoveUser() {
+    void deleteById() {
 
         User user = new User();
-        user.setEmail("delete@example.com");
+        user.setEmail("test@example.com");
+        user.setName("Test_user");
+        user.setAge(99);
         userDao.save(user);
 
 
@@ -156,7 +174,7 @@ class UserDaoTest {
     }
 
     @Test
-    void deleteById_ShouldReturnFalse_WhenUserDoesNotExist() {
+    void deleteByIdNotExistTest() {
 
         boolean isDeleted = userDao.deleteById(999L);
 
